@@ -3,10 +3,11 @@
 #include <cstdlib>
 
 #include "StaticOO.hpp"
+#include "StaticWithSpan.hpp"
 #include "VirtualOO.hpp"
 
 namespace {
-static constexpr auto kNumberOfModels = 1000;
+static constexpr auto kNumberOfModels = 100000;
 static constexpr auto kNumberOfAnimationsPerModel = 100;
 
 const std::vector<std::string> kStrings = {"foo", "bar", "baz",
@@ -16,23 +17,29 @@ auto makeInterpolator() {
   return LinearInterpolator{(float)(rand() % 256 - 256), (float)(rand() % 256)};
 }
 
-auto makeAnimations(std::vector<Property> properties) {
-  auto animations = std::vector<OO::Animation>();
+void makeAnimations(const std::vector<Property> &properties,
+                    std::vector<OO::Animation> &animations, size_t index) {
   auto remainingAnimations = kNumberOfAnimationsPerModel;
+  size_t count = 0;
   for (size_t j = 0; j < properties.size(); ++j) {
     auto property = properties[j];
     if (remainingAnimations == 0) {
-      return animations;
+      return;
     }
     auto currentAnimations = j == properties.size() - 1
                                  ? remainingAnimations
                                  : rand() % remainingAnimations;
     remainingAnimations -= currentAnimations;
     for (int i = 0; i < currentAnimations; ++i) {
-      auto animation = OO::Animation{makeInterpolator(), {property}};
-      animations.emplace_back(animation);
+      animations[index + count] = OO::Animation{makeInterpolator(), {property}};
+      ++count;
     }
   }
+}
+
+auto makeAnimations(const std::vector<Property> &properties) {
+  auto animations = std::vector<OO::Animation>(kNumberOfAnimationsPerModel);
+  makeAnimations(properties, animations, 0);
   return animations;
 }
 
@@ -90,37 +97,96 @@ OO::Static::Model makeStaticModel() {
   }
 }
 
+OO::StaticWithSpan::Model makeStaticModelWithSpan(
+    std::vector<OO::Animation> &animations, size_t lastIndex) {
+  if (rand() % 2 == 0) {
+    auto model = OO::StaticWithSpan::Text();
+    model.text = kStrings[rand() % kStrings.size()];
+    model.x = rand() % 100;
+    model.y = rand() % 100;
+    model.red = rand() % 256;
+    model.green = rand() % 256;
+    model.blue = rand() % 256;
+    model.scale = rand() % 100;
+    model.opacity = rand() % 100;
+    makeAnimations(
+        {Property::X, Property::Y, Property::Scale, Property::Opacity},
+        animations, lastIndex);
+    model.animations =
+        gsl::span(animations.data() + lastIndex, kNumberOfAnimationsPerModel);
+    return model;
+  } else {
+    auto model = OO::StaticWithSpan::Image();
+    model.imageSource = kStrings[rand() % kStrings.size()];
+    model.x = rand() % 100;
+    model.y = rand() % 100;
+    model.scale = rand() % 100;
+    model.opacity = rand() % 100;
+    makeAnimations(
+        {Property::X, Property::Y, Property::Scale, Property::Opacity},
+        animations, lastIndex);
+    model.animations =
+        gsl::span(animations.data() + lastIndex, kNumberOfAnimationsPerModel);
+    return model;
+  }
+}
+
 void testBunched() {
+  auto start = std::chrono::steady_clock::now();
   auto virtualInputs =
       std::vector<std::unique_ptr<OO::Virtual::Model>>(kNumberOfModels);
   for (int i = 0; i < kNumberOfModels; ++i) {
     virtualInputs[i] = makeVirtualModel();
-    for (int j = 0; j < kNumberOfAnimationsPerModel; ++j) {
-    }
   }
+  auto finish = std::chrono::steady_clock::now();
+  std::chrono::duration<double> elapsed = finish - start;
+  printf("Time to allocate virtual: %f\n", elapsed.count());
 
+  start = std::chrono::steady_clock::now();
   auto staticInputs = std::vector<OO::Static::Model>(kNumberOfModels);
   for (int i = 0; i < kNumberOfModels; ++i) {
     staticInputs[i] = makeStaticModel();
-    for (int j = 0; j < kNumberOfAnimationsPerModel; ++j) {
-    }
   }
+  finish = std::chrono::steady_clock::now();
+  elapsed = finish - start;
+  printf("Time to allocate static: %f\n", elapsed.count());
 
-  auto start = std::chrono::steady_clock::now();
+  start = std::chrono::steady_clock::now();
+  auto staticWithSpanInputs =
+      std::vector<OO::StaticWithSpan::Model>(kNumberOfModels);
+  auto animations =
+      std::vector<OO::Animation>(kNumberOfAnimationsPerModel * kNumberOfModels);
+  for (int i = 0; i < kNumberOfModels; ++i) {
+    staticWithSpanInputs[i] =
+        makeStaticModelWithSpan(animations, i * kNumberOfAnimationsPerModel);
+  }
+  finish = std::chrono::steady_clock::now();
+  elapsed = finish - start;
+  printf("Time to allocate static with span: %f\n", elapsed.count());
+
+  start = std::chrono::steady_clock::now();
   auto interpolatedVirtualModels =
       OO::Virtual::interpolateModels(virtualInputs, 2);
-  auto finish = std::chrono::steady_clock::now();
-  std::chrono::duration<double> elapsed = finish - start;
-  printf("size of result: %lu took time: %f\n",
-         interpolatedVirtualModels.size(), elapsed.count());
+  finish = std::chrono::steady_clock::now();
+  elapsed = finish - start;
+  printf("Virtual: %lu took time: %f\n", interpolatedVirtualModels.size(),
+         elapsed.count());
 
   start = std::chrono::steady_clock::now();
   auto interpolatedStaticModels =
       OO::Static::interpolateModels(staticInputs, 2);
   finish = std::chrono::steady_clock::now();
   elapsed = finish - start;
-  printf("size of result: %lu took time: %f\n", interpolatedStaticModels.size(),
+  printf("Static: %lu took time: %f\n", interpolatedStaticModels.size(),
          elapsed.count());
+
+  start = std::chrono::steady_clock::now();
+  auto interpolatedStaticWithSpanModels =
+      OO::StaticWithSpan::interpolateModels(staticWithSpanInputs, 2);
+  finish = std::chrono::steady_clock::now();
+  elapsed = finish - start;
+  printf("Static with span: %lu took time: %f\n",
+         interpolatedStaticWithSpanModels.size(), elapsed.count());
 }
 
 void testInterleaved() {}
