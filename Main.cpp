@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdlib>
 
+#include "DataOriented.hpp"
 #include "StaticOO.hpp"
 #include "StaticWithSpan.hpp"
 #include "VirtualOO.hpp"
@@ -9,6 +10,10 @@
 namespace {
 static constexpr auto kNumberOfModels = 100000;
 static constexpr auto kNumberOfAnimationsPerModel = 100;
+static constexpr auto kTotalNumberOfAnimations =
+    kNumberOfModels * kNumberOfAnimationsPerModel;
+
+inline int randomValue(int maxValue) { return rand() % maxValue; }
 
 const std::vector<std::string> kStrings = {"foo", "bar", "baz",
                                            "some other string"};
@@ -128,6 +133,139 @@ OO::StaticWithSpan::Model makeStaticModelWithSpan(
     model.animations =
         gsl::span(animations.data() + lastIndex, kNumberOfAnimationsPerModel);
     return model;
+  }
+}
+
+void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
+                std::vector<OO::Static::Model> &staticModels,
+                OO::StaticWithSpan::Input &staticWithSpanInput,
+                DataOriented::Input &dataOrientedInput) {
+  virtualModels.reserve(kNumberOfModels);
+  staticModels.reserve(kNumberOfModels);
+  staticWithSpanInput.models.reserve(kNumberOfModels);
+  staticWithSpanInput.animations.reserve(kNumberOfAnimationsPerModel);
+  dataOrientedInput.models.reserve(kNumberOfModels);
+  dataOrientedInput.inputValues = std::vector<InputValue>(kNumberOfModels * 7);
+  dataOrientedInput.interpolators.reserve(kNumberOfAnimationsPerModel);
+  dataOrientedInput.interpolationResults =
+      std::vector<float>(kNumberOfModels * 7);
+
+  for (int i = 0; i < kNumberOfAnimationsPerModel; ++i) {
+    dataOrientedInput.interpolators.push_back(makeInterpolator());
+  }
+
+  int totalSetProperties = 0;
+  for (int i = 0; i < kNumberOfModels; ++i) {
+    int numberOfProperties = 0;
+    if (rand() % 2 == 0) {
+      numberOfProperties = 7;
+      auto virtualModel = std::make_unique<OO::Virtual::Text>();
+      virtualModel->text = kStrings[rand() % kStrings.size()];
+      virtualModel->x = rand() % 100;
+      virtualModel->y = rand() % 100;
+      virtualModel->red = rand() % 256;
+      virtualModel->green = rand() % 256;
+      virtualModel->blue = rand() % 256;
+      virtualModel->scale = rand() % 100;
+      virtualModel->opacity = rand() % 100;
+
+      auto staticModel = OO::Static::Text();
+      staticModel.text = virtualModel->text;
+      staticModel.x = virtualModel->x;
+      staticModel.y = virtualModel->y;
+      staticModel.red = virtualModel->red;
+      staticModel.green = virtualModel->green;
+      staticModel.blue = virtualModel->blue;
+      staticModel.scale = virtualModel->scale;
+      staticModel.opacity = virtualModel->opacity;
+
+      auto staticWithSpanModel = OO::StaticWithSpan::Text();
+      staticWithSpanModel.text = virtualModel->text;
+      staticWithSpanModel.x = virtualModel->x;
+      staticWithSpanModel.y = virtualModel->y;
+      staticWithSpanModel.red = virtualModel->red;
+      staticWithSpanModel.green = virtualModel->green;
+      staticWithSpanModel.blue = virtualModel->blue;
+      staticWithSpanModel.scale = virtualModel->scale;
+      staticWithSpanModel.opacity = virtualModel->opacity;
+
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->x;
+      dataOrientedInput.inputValues.back().updateOperator = UpdateOperator::Add;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->y;
+      dataOrientedInput.inputValues.back().updateOperator = UpdateOperator::Add;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->red;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Multiply;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->blue;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Multiply;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->green;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Multiply;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->scale;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Multiply;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->opacity;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Replace;
+      auto dataOrientedModel = DataOriented::Text(
+          virtualModel->text,
+          gsl::span(dataOrientedInput.interpolationResults.data() +
+                        totalSetProperties,
+                    numberOfProperties));
+    } else {
+      numberOfProperties = 4;
+      auto virtualModel = std::make_unique<OO::Virtual::Image>();
+      virtualModel->imageSource = kStrings[rand() % kStrings.size()];
+      virtualModel->x = rand() % 100;
+      virtualModel->y = rand() % 100;
+      virtualModel->scale = rand() % 100;
+      virtualModel->opacity = rand() % 100;
+
+      auto staticModel = OO::Static::Image();
+      staticModel.imageSource = virtualModel->imageSource;
+      staticModel.x = virtualModel->x;
+      staticModel.y = virtualModel->y;
+      staticModel.scale = virtualModel->scale;
+      staticModel.opacity = virtualModel->opacity;
+
+      auto staticWithSpanModel = OO::StaticWithSpan::Image();
+      staticWithSpanModel.imageSource = virtualModel->imageSource;
+      staticWithSpanModel.x = virtualModel->x;
+      staticWithSpanModel.y = virtualModel->y;
+      staticWithSpanModel.scale = virtualModel->scale;
+      staticWithSpanModel.opacity = virtualModel->opacity;
+
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->x;
+      dataOrientedInput.inputValues.back().updateOperator = UpdateOperator::Add;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->y;
+      dataOrientedInput.inputValues.back().updateOperator = UpdateOperator::Add;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->scale;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Replace;
+      dataOrientedInput.inputValues.push_back({});
+      dataOrientedInput.inputValues.back().initialValue = virtualModel->opacity;
+      dataOrientedInput.inputValues.back().updateOperator =
+          UpdateOperator::Replace;
+      auto dataOrientedModel = DataOriented::Image(
+          virtualModel->imageSource,
+          gsl::span(dataOrientedInput.interpolationResults.data() +
+                        totalSetProperties,
+                    numberOfProperties));
+    }
+
+    totalSetProperties += numberOfProperties;
   }
 }
 

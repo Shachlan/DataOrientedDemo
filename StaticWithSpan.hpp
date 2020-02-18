@@ -38,4 +38,9 @@ std::vector<Model> interpolateModels(const std::vector<Model> &inputs,
 
 void updateValue(Model &model, Property property, float value);
 
-}  // namespace OO::Static
+struct Input {
+  std::vector<Model> models;
+  std::vector<OO::Animation> animations;
+};
+
+}  // namespace OO::StaticWithSpan
