@@ -145,7 +145,8 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
   staticWithSpanInput.models.reserve(kNumberOfModels);
   staticWithSpanInput.animations.reserve(kNumberOfAnimationsPerModel);
   dataOrientedInput.models.reserve(kNumberOfModels);
-  dataOrientedInput.inputValues = std::vector<InputValue>(kNumberOfModels * 7);
+  dataOrientedInput.inputValues =
+      std::vector<DataOriented::InputValue>(kNumberOfModels * 7);
   dataOrientedInput.interpolators.reserve(kNumberOfAnimationsPerModel);
   dataOrientedInput.interpolationResults =
       std::vector<float>(kNumberOfModels * 7);
@@ -220,6 +221,11 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
           gsl::span(dataOrientedInput.interpolationResults.data() +
                         totalSetProperties,
                     numberOfProperties));
+
+      virtualModels.emplace_back(virtualModel.release());
+      staticModels.emplace_back(staticModel);
+      staticWithSpanInput.models.emplace_back(staticWithSpanModel);
+      dataOrientedInput.models.push_back(dataOrientedModel);
     } else {
       numberOfProperties = 4;
       auto virtualModel = std::make_unique<OO::Virtual::Image>();
@@ -263,6 +269,11 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
           gsl::span(dataOrientedInput.interpolationResults.data() +
                         totalSetProperties,
                     numberOfProperties));
+
+      virtualModels.emplace_back(virtualModel.release());
+      staticModels.emplace_back(staticModel);
+      staticWithSpanInput.models.emplace_back(staticWithSpanModel);
+      dataOrientedInput.models.push_back(dataOrientedModel);
     }
 
     totalSetProperties += numberOfProperties;
@@ -271,40 +282,20 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
 
 void testBunched() {
   auto start = std::chrono::steady_clock::now();
-  auto virtualInputs =
-      std::vector<std::unique_ptr<OO::Virtual::Model>>(kNumberOfModels);
-  for (int i = 0; i < kNumberOfModels; ++i) {
-    virtualInputs[i] = makeVirtualModel();
-  }
+  std::vector<std::unique_ptr<OO::Virtual::Model>> virtualModels;
+  std::vector<OO::Static::Model> staticModels;
+  OO::StaticWithSpan::Input staticWithSpanInput;
+  DataOriented::Input dataOrientedInput;
+  makeModels(virtualModels, staticModels, staticWithSpanInput,
+             dataOrientedInput);
+
   auto finish = std::chrono::steady_clock::now();
   std::chrono::duration<double> elapsed = finish - start;
-  printf("Time to allocate virtual: %f\n", elapsed.count());
-
-  start = std::chrono::steady_clock::now();
-  auto staticInputs = std::vector<OO::Static::Model>(kNumberOfModels);
-  for (int i = 0; i < kNumberOfModels; ++i) {
-    staticInputs[i] = makeStaticModel();
-  }
-  finish = std::chrono::steady_clock::now();
-  elapsed = finish - start;
-  printf("Time to allocate static: %f\n", elapsed.count());
-
-  start = std::chrono::steady_clock::now();
-  auto staticWithSpanInputs =
-      std::vector<OO::StaticWithSpan::Model>(kNumberOfModels);
-  auto animations =
-      std::vector<OO::Animation>(kNumberOfAnimationsPerModel * kNumberOfModels);
-  for (int i = 0; i < kNumberOfModels; ++i) {
-    staticWithSpanInputs[i] =
-        makeStaticModelWithSpan(animations, i * kNumberOfAnimationsPerModel);
-  }
-  finish = std::chrono::steady_clock::now();
-  elapsed = finish - start;
-  printf("Time to allocate static with span: %f\n", elapsed.count());
+  printf("Time to allocate models: %f\n", elapsed.count());
 
   start = std::chrono::steady_clock::now();
   auto interpolatedVirtualModels =
-      OO::Virtual::interpolateModels(virtualInputs, 2);
+      OO::Virtual::interpolateModels(virtualModels, 2);
   finish = std::chrono::steady_clock::now();
   elapsed = finish - start;
   printf("Virtual: %lu took time: %f\n", interpolatedVirtualModels.size(),
@@ -312,7 +303,7 @@ void testBunched() {
 
   start = std::chrono::steady_clock::now();
   auto interpolatedStaticModels =
-      OO::Static::interpolateModels(staticInputs, 2);
+      OO::Static::interpolateModels(staticModels, 2);
   finish = std::chrono::steady_clock::now();
   elapsed = finish - start;
   printf("Static: %lu took time: %f\n", interpolatedStaticModels.size(),
@@ -320,11 +311,18 @@ void testBunched() {
 
   start = std::chrono::steady_clock::now();
   auto interpolatedStaticWithSpanModels =
-      OO::StaticWithSpan::interpolateModels(staticWithSpanInputs, 2);
+      OO::StaticWithSpan::interpolateModels(staticWithSpanInput.models, 2);
   finish = std::chrono::steady_clock::now();
   elapsed = finish - start;
   printf("Static with span: %lu took time: %f\n",
          interpolatedStaticWithSpanModels.size(), elapsed.count());
+
+  start = std::chrono::steady_clock::now();
+  DataOriented::interpolateModels(dataOrientedInput.inputValues,
+                                  dataOrientedInput.interpolationResults, 2);
+  finish = std::chrono::steady_clock::now();
+  elapsed = finish - start;
+  printf("Data oriented: took time: %f\n", elapsed.count());
 }
 
 void testInterleaved() {}

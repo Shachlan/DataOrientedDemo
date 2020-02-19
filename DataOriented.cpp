@@ -36,7 +36,7 @@ UpdateOperator Text::updateOperatorForProperty(Property property) {
   }
 }
 
-void interpolateModels(const std::vector<SourceValue> &sourceValues,
+void interpolateModels(const std::vector<InputValue> &sourceValues,
                        std::vector<float> &properties, float time) {
   for (int i = 0; i < sourceValues.size(); ++i) {
     auto &sourceValue = sourceValues[i];

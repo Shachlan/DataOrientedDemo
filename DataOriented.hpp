@@ -48,4 +48,7 @@ struct Input {
   std::vector<float> interpolationResults;
 };
 
+void interpolateModels(const std::vector<InputValue> &sourceValues,
+                       std::vector<float> &properties, float time);
+
 }  // namespace DataOriented
