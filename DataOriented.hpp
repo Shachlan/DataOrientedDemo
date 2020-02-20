@@ -12,6 +12,13 @@
 namespace DataOriented {
 
 struct InputValue {
+  InputValue(float initialValue,
+             const gsl::span<LinearInterpolator> &animations,
+             UpdateOperator updateOperator)
+      : initialValue(initialValue),
+        animations(animations),
+        updateOperator(updateOperator) {}
+
   float initialValue;
 
   gsl::span<LinearInterpolator> animations;

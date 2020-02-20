@@ -6,11 +6,22 @@
   "configurations": [
     {
       "type": "lldb",
+      "request": "custom",
+      "name": "Custom launch",
+      "targetCreateCommands": ["target create ${workspaceFolder}/check"],
+      "processCreateCommands": [
+        "settings set target.run-args value1 value2 value3",
+        "process launch"
+      ]
+    },
+    {
+      "type": "lldb",
       "request": "launch",
       "name": "Debug",
       "program": "${workspaceFolder}/check",
       "args": [],
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}",
+      "terminal": "console"
     }
   ]
 }
