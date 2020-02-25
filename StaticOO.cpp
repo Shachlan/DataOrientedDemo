@@ -75,6 +75,7 @@ float &Image::propertyToUpdate(Property property) {
     case Property::Opacity:
       return opacity;
     default:
+      printf("Static: Unknown property: %d\n", property);
       exit(1);
   }
 }
@@ -90,6 +91,7 @@ UpdateOperator Image::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
     default:
+      printf("Static: Unknown property: %d\n", property);
       exit(1);
   }
 }
@@ -105,9 +107,7 @@ std::vector<Model> interpolateModels(const std::vector<Model> &inputs,
           auto &copy = output[i];
           for (auto &animation : model.animations) {
             auto value = animation.interpolator.interpolate(time);
-            for (auto &property : animation.propertiesToAnimate) {
-              updateValue(copy, property, value);
-            }
+            updateValue(copy, animation.propertyToAnimate, value);
           }
         },
         model);

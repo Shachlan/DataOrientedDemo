@@ -33,7 +33,8 @@ class Text {
   std::string_view text;
   gsl::span<float, 7> properties;
 
-  UpdateOperator updateOperatorForProperty(Property property);
+  static size_t indexOfProperty(Property property);
+  static UpdateOperator updateOperatorForProperty(Property property);
 };
 
 class Image {
@@ -43,7 +44,8 @@ class Image {
   std::string_view imageSource;
   gsl::span<float, 4> properties;
 
-  UpdateOperator updateOperatorForProperty(Property property);
+  static size_t indexOfProperty(Property property);
+  static UpdateOperator updateOperatorForProperty(Property property);
 };
 
 using Model = std::variant<Image, Text>;

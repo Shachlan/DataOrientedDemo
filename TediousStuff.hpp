@@ -6,7 +6,7 @@
 namespace Tedious {
 
 inline constexpr auto kNumberOfModels = 2;
-inline constexpr auto kNumberOfAnimationsPerModel = 100;
+inline constexpr auto kNumberOfAnimationsPerModel = 10;
 inline constexpr auto kTotalNumberOfAnimations =
     kNumberOfModels * kNumberOfAnimationsPerModel;
 
@@ -25,6 +25,6 @@ void verifyModels(
     const std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
     const std::vector<OO::Static::Model> &staticModels,
     const std::vector<OO::StaticWithSpan::Model> &staticWithSpanModels,
-    const std::vector<float> &dataOrientedResults);
+    const std::vector<DataOriented::Model> &dataOrientedModels);
 
 }  // namespace Tedious

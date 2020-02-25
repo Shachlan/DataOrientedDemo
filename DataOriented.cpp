@@ -13,6 +13,23 @@ UpdateOperator Image::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
     default:
+      printf("DOD: unknown property in %d\n", property);
+      exit(1);
+  }
+}
+
+size_t Image::indexOfProperty(Property property) {
+  switch (property) {
+    case Property::X:
+      return 0;
+    case Property::Y:
+      return 1;
+    case Property::Scale:
+      return 2;
+    case Property::Opacity:
+      return 3;
+    default:
+      printf("DOD: unknown property in %d\n", property);
       exit(1);
   }
 }
@@ -35,6 +52,8 @@ UpdateOperator Text::updateOperatorForProperty(Property property) {
       return UpdateOperator::Replace;
   }
 }
+
+size_t Text::indexOfProperty(Property property) { return (size_t)property; }
 
 void interpolateModels(const std::vector<InputValue> &sourceValues,
                        std::vector<float> &properties, float time) {

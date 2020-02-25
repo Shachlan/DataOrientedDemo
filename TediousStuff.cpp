@@ -2,18 +2,149 @@
 
 #include <cassert>
 
+namespace Tedious {
+
 namespace {
+
 inline int randomValue(int maxValue) { return rand() % maxValue; }
 
 const std::vector<std::string> kStrings = {"foo", "bar", "baz",
                                            "some other string"};
 
+bool operator==(const OO::Static::Model &staticModel,
+                const std::unique_ptr<OO::Virtual::Model> &virtualModel) {
+  if (std::holds_alternative<OO::Static::Text>(staticModel)) {
+    auto sText = std::get<OO::Static::Text>(staticModel);
+    auto vText = (OO::Virtual::Text *)virtualModel.get();
+
+    return vText->text == sText.text && vText->x == sText.x &&
+           vText->y == sText.y && vText->red == sText.red &&
+           vText->green == sText.green && vText->blue == sText.blue &&
+           vText->scale == sText.scale && vText->opacity == sText.opacity;
+  } else {
+    auto sImage = std::get<OO::Static::Image>(staticModel);
+    auto vImage = (OO::Virtual::Image *)virtualModel.get();
+
+    return vImage->imageSource == sImage.imageSource && vImage->x == sImage.x &&
+           vImage->y == sImage.y && vImage->scale == sImage.scale &&
+           vImage->opacity == sImage.opacity;
+  }
+}
+
+bool operator==(const OO::Static::Model &staticModel,
+                const OO::StaticWithSpan::Model &staticWithSpanModel) {
+  if (std::holds_alternative<OO::Static::Text>(staticModel)) {
+    auto sText = std::get<OO::Static::Text>(staticModel);
+    auto swsText = std::get<OO::StaticWithSpan::Text>(staticWithSpanModel);
+
+    return swsText.text == sText.text && swsText.x == sText.x &&
+           swsText.y == sText.y && swsText.red == sText.red &&
+           swsText.green == sText.green && swsText.blue == sText.blue &&
+           swsText.scale == sText.scale && swsText.opacity == sText.opacity;
+  } else {
+    auto sImage = std::get<OO::Static::Image>(staticModel);
+    auto swsImage = std::get<OO::StaticWithSpan::Image>(staticWithSpanModel);
+
+    return swsImage.imageSource == sImage.imageSource &&
+           swsImage.x == sImage.x && swsImage.y == sImage.y &&
+           swsImage.scale == sImage.scale && swsImage.opacity == sImage.opacity;
+  }
+}
+
+bool operator==(const OO::Static::Model &staticModel,
+                const DataOriented::Model &dataOrientedModel) {
+  if (std::holds_alternative<OO::Static::Text>(staticModel)) {
+    auto sText = std::get<OO::Static::Text>(staticModel);
+    auto dodText = std::get<DataOriented::Text>(dataOrientedModel);
+
+    return dodText.text == dodText.text && dodText.properties[0] == sText.x &&
+           dodText.properties[1] == sText.y &&
+           dodText.properties[2] == sText.red &&
+           dodText.properties[3] == sText.green &&
+           dodText.properties[4] == sText.blue &&
+           dodText.properties[5] == sText.scale &&
+           dodText.properties[6] == sText.opacity;
+  } else {
+    auto sImage = std::get<OO::Static::Image>(staticModel);
+    auto dodImage = std::get<DataOriented::Image>(dataOrientedModel);
+
+    return dodImage.imageSource == sImage.imageSource &&
+           dodImage.properties[0] == sImage.x &&
+           dodImage.properties[1] == sImage.y &&
+           dodImage.properties[2] == sImage.scale &&
+           dodImage.properties[3] == sImage.opacity;
+  }
+}
+
 auto makeInterpolator() {
   return LinearInterpolator{(float)(rand() % 256 - 256), (float)(rand() % 256)};
 }
-}  // namespace
 
-namespace Tedious {
+auto makeAnimations(const std::vector<Property> &properties) {
+  auto animations = std::vector<OO::Animation>();
+  animations.reserve(kNumberOfAnimationsPerModel);
+  auto remainingAnimations = kNumberOfAnimationsPerModel;
+  for (size_t j = 0; j < properties.size(); ++j) {
+    auto property = properties[j];
+    if (remainingAnimations == 0) {
+      return animations;
+    }
+    auto currentAnimations = j == properties.size() - 1
+                                 ? remainingAnimations
+                                 : rand() % remainingAnimations;
+    remainingAnimations -= currentAnimations;
+    for (int i = 0; i < currentAnimations; ++i) {
+      animations.push_back({makeInterpolator(), property});
+    }
+  }
+  return animations;
+}
+
+template <typename StaticWithSpanModel>
+void addAnimations(const std::vector<OO::Animation> &animations,
+                   StaticWithSpanModel &model,
+                   OO::StaticWithSpan::Input &input) {
+  input.animations.insert(input.animations.end(), animations.cbegin(),
+                          animations.cend());
+  model.animations = gsl::span(
+      input.animations.data() + input.animations.size() - animations.size(),
+      animations.size());
+}
+
+template <typename DataOrientedModel>
+void addAnimations(const std::vector<OO::Animation> &animations,
+                   DataOrientedModel &model, DataOriented::Input &input) {
+  auto numberOfPropertiesInModel = model.properties.size();
+  size_t inputsBeginning = input.inputValues.size() - numberOfPropertiesInModel;
+  int prevProperty = -1;
+  size_t propCount = 0;
+  for (const auto &animation : animations) {
+    if (int propIndex = model.indexOfProperty(animation.propertyToAnimate);
+        propIndex != prevProperty) {
+      if (propCount > 0) {
+        auto &inputValue = input.inputValues[inputsBeginning + prevProperty];
+        inputValue.animations = gsl::span(
+            input.interpolators.data() + inputsBeginning + prevProperty,
+            propCount);
+        assert(propCount == input.inputValues[inputsBeginning + prevProperty]
+                                .animations.size());
+      }
+      prevProperty = propIndex;
+      propCount = 0;
+    }
+    ++propCount;
+    input.interpolators.push_back(animation.interpolator);
+  }
+  if (propCount > 0) {
+    auto &inputValue = input.inputValues[inputsBeginning + prevProperty];
+    inputValue.animations = gsl::span(
+        input.interpolators.data() + inputsBeginning + prevProperty, propCount);
+    assert(propCount ==
+           input.inputValues[inputsBeginning + prevProperty].animations.size());
+  }
+}
+
+}  // namespace
 
 void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
                 std::vector<OO::Static::Model> &staticModels,
@@ -22,22 +153,19 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
   virtualModels.reserve(kNumberOfModels);
   staticModels.reserve(kNumberOfModels);
   staticWithSpanInput.models.reserve(kNumberOfModels);
-  staticWithSpanInput.animations.reserve(kNumberOfAnimationsPerModel);
+  staticWithSpanInput.animations.reserve(kTotalNumberOfAnimations);
   dataOrientedInput.models.reserve(kNumberOfModels);
   dataOrientedInput.inputValues = std::vector<DataOriented::InputValue>();
   dataOrientedInput.inputValues.reserve(kNumberOfModels * 7);
-  dataOrientedInput.interpolators.reserve(kNumberOfAnimationsPerModel);
+  dataOrientedInput.interpolators.reserve(kTotalNumberOfAnimations);
   dataOrientedInput.interpolationResults =
       std::vector<float>(kNumberOfModels * 7);
-
-  for (int i = 0; i < kNumberOfAnimationsPerModel; ++i) {
-    dataOrientedInput.interpolators.push_back(makeInterpolator());
-  }
 
   int totalSetProperties = 0;
   for (int i = 0; i < kNumberOfModels; ++i) {
     int numberOfProperties = 0;
     if (rand() % 2 == 0) {
+      printf("make text\n");
       numberOfProperties = 7;
       auto virtualModel = std::make_unique<OO::Virtual::Text>();
       virtualModel->text = kStrings[rand() % kStrings.size()];
@@ -96,6 +224,14 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
                         totalSetProperties,
                     numberOfProperties));
 
+      auto animations = makeAnimations({Property::X, Property::Y, Property::Red,
+                                        Property::Green, Property::Blue,
+                                        Property::Scale, Property::Opacity});
+      virtualModel->animations = animations;
+      staticModel.animations = animations;
+      addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
+      addAnimations(animations, dataOrientedModel, dataOrientedInput);
+
       virtualModels.emplace_back(virtualModel.release());
       staticModels.emplace_back(staticModel);
       staticWithSpanInput.models.emplace_back(staticWithSpanModel);
@@ -142,6 +278,13 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
                         totalSetProperties,
                     numberOfProperties));
 
+      auto animations = makeAnimations(
+          {Property::X, Property::Y, Property::Scale, Property::Opacity});
+      virtualModel->animations = animations;
+      staticModel.animations = animations;
+      addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
+      addAnimations(animations, dataOrientedModel, dataOrientedInput);
+
       virtualModels.emplace_back(virtualModel.release());
       staticModels.emplace_back(staticModel);
       staticWithSpanInput.models.emplace_back(staticWithSpanModel);
@@ -163,56 +306,28 @@ void verifyInitialModels(
   size_t propertyCounter = 0;
   for (size_t i = 0; i < virtualModels.size(); ++i) {
     auto &staticModel = staticModels[i];
-    auto &staticWithSpanModel = staticWithSpanModels[i];
-    auto &virtualModel = virtualModels[i];
+    assert(staticModel == staticWithSpanModels[i]);
+    assert(staticModel == virtualModels[i]);
 
     if (std::holds_alternative<OO::Static::Text>(staticModel)) {
-      auto vText = (OO::Virtual::Text *)virtualModel.get();
       auto sText = std::get<OO::Static::Text>(staticModel);
-      auto swsText = std::get<OO::StaticWithSpan::Text>(staticWithSpanModel);
 
-      assert(vText->x == sText.x);
-      assert(vText->x == swsText.x);
-      assert(vText->x == dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vText->y == sText.y);
-      assert(vText->y == swsText.y);
-      assert(vText->y == dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vText->red == sText.red);
-      assert(vText->red == swsText.red);
-      assert(vText->red == dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vText->green == sText.green);
-      assert(vText->green == swsText.green);
-      assert(vText->green ==
-             dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vText->blue == sText.blue);
-      assert(vText->blue == swsText.blue);
-      assert(vText->blue == dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vText->scale == sText.scale);
-      assert(vText->scale == swsText.scale);
-      assert(vText->scale ==
-             dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vText->opacity == sText.opacity);
-      assert(vText->opacity == swsText.opacity);
-      assert(vText->opacity ==
+      assert(sText.x == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sText.y == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sText.red == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sText.green == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sText.blue == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sText.scale == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sText.opacity ==
              dataOrientedInputs[propertyCounter++].initialValue);
     } else {
-      auto vImage = (OO::Virtual::Image *)virtualModel.get();
       auto sImage = std::get<OO::Static::Image>(staticModel);
-      auto swsImage = std::get<OO::StaticWithSpan::Image>(staticWithSpanModel);
 
-      assert(vImage->x == sImage.x);
-      assert(vImage->x == swsImage.x);
-      assert(vImage->x == dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vImage->y == sImage.y);
-      assert(vImage->y == swsImage.y);
-      assert(vImage->y == dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vImage->scale == sImage.scale);
-      assert(vImage->scale == swsImage.scale);
-      assert(vImage->scale ==
+      assert(sImage.x == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sImage.y == dataOrientedInputs[propertyCounter++].initialValue);
+      assert(sImage.scale ==
              dataOrientedInputs[propertyCounter++].initialValue);
-      assert(vImage->opacity == sImage.opacity);
-      assert(vImage->opacity == swsImage.opacity);
-      assert(vImage->opacity ==
+      assert(sImage.opacity ==
              dataOrientedInputs[propertyCounter++].initialValue);
     }
   }
@@ -222,6 +337,17 @@ void verifyModels(
     const std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
     const std::vector<OO::Static::Model> &staticModels,
     const std::vector<OO::StaticWithSpan::Model> &staticWithSpanModels,
-    const std::vector<float> &dataOrientedResults) {}
+    const std::vector<DataOriented::Model> &dataOrientedModels) {
+  assert(virtualModels.size() == staticModels.size());
+  assert(virtualModels.size() == staticWithSpanModels.size());
+  assert(virtualModels.size() == dataOrientedModels.size());
+
+  size_t propertyCounter = 0;
+  for (size_t i = 0; i < virtualModels.size(); ++i) {
+    assert(staticModels[i] == staticWithSpanModels[i]);
+    assert(staticModels[i] == virtualModels[i]);
+    assert(staticModels[i] == dataOrientedModels[i]);
+  }
+}
 
 }  // namespace Tedious

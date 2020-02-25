@@ -76,6 +76,7 @@ float &Image::propertyToUpdate(Property property) {
     case Property::Opacity:
       return opacity;
     default:
+      printf("Virtual: Unknown property: %d\n", property);
       exit(1);
   }
 }
@@ -91,6 +92,7 @@ UpdateOperator Image::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
     default:
+      printf("Virtual: Unknown property: %d\n", property);
       exit(1);
   }
 }
@@ -99,14 +101,13 @@ std::vector<std::unique_ptr<Model>> interpolateModels(
     const std::vector<std::unique_ptr<Model>> &inputs, float time) {
   auto output = std::vector<std::unique_ptr<Model>>(inputs.size());
   for (int i = 0; i < inputs.size(); ++i) {
+
     auto &model = inputs[i];
     output[i] = model->makeCopy();
     auto &copy = output[i];
     for (auto &animation : model->animations) {
       auto value = animation.interpolator.interpolate(time);
-      for (auto &property : animation.propertiesToAnimate) {
-        copy->updateValue(property, value);
-      }
+      copy->updateValue(animation.propertyToAnimate, value);
     }
   }
 

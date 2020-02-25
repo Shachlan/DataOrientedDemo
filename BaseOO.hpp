@@ -9,7 +9,7 @@ namespace OO {
 
 struct Animation {
   LinearInterpolator interpolator;
-  std::vector<Property> propertiesToAnimate;
+  Property propertyToAnimate;
 };
 
 }  // namespace OO
