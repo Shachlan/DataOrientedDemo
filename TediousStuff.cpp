@@ -111,36 +111,10 @@ void addAnimations(const std::vector<OO::Animation> &animations,
       animations.size());
 }
 
-template <typename DataOrientedModel>
 void addAnimations(const std::vector<OO::Animation> &animations,
-                   DataOrientedModel &model, DataOriented::Input &input) {
-  auto numberOfPropertiesInModel = model.properties.size();
-  size_t inputsBeginning = input.inputValues.size() - numberOfPropertiesInModel;
-  int prevProperty = -1;
-  size_t propCount = 0;
-  for (const auto &animation : animations) {
-    if (int propIndex = model.indexOfProperty(animation.propertyToAnimate);
-        propIndex != prevProperty) {
-      if (propCount > 0) {
-        auto &inputValue = input.inputValues[inputsBeginning + prevProperty];
-        inputValue.animations = gsl::span(
-            input.interpolators.data() + inputsBeginning + prevProperty,
-            propCount);
-        assert(propCount == input.inputValues[inputsBeginning + prevProperty]
-                                .animations.size());
-      }
-      prevProperty = propIndex;
-      propCount = 0;
-    }
-    ++propCount;
+                   DataOriented::Input &input) {
+  for (auto &animation : animations) {
     input.interpolators.push_back(animation.interpolator);
-  }
-  if (propCount > 0) {
-    auto &inputValue = input.inputValues[inputsBeginning + prevProperty];
-    inputValue.animations = gsl::span(
-        input.interpolators.data() + inputsBeginning + prevProperty, propCount);
-    assert(propCount ==
-           input.inputValues[inputsBeginning + prevProperty].animations.size());
   }
 }
 
@@ -161,11 +135,10 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
   dataOrientedInput.interpolationResults =
       std::vector<float>(kNumberOfModels * 7);
 
-  int totalSetProperties = 0;
+  size_t totalSetProperties = 0;
   for (int i = 0; i < kNumberOfModels; ++i) {
     int numberOfProperties = 0;
     if (rand() % 2 == 0) {
-      printf("make text\n");
       numberOfProperties = 7;
       auto virtualModel = std::make_unique<OO::Virtual::Text>();
       virtualModel->text = kStrings[rand() % kStrings.size()];
@@ -197,40 +170,84 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
       staticWithSpanModel.scale = virtualModel->scale;
       staticWithSpanModel.opacity = virtualModel->opacity;
 
-      dataOrientedInput.inputValues.push_back({virtualModel->x,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Add});
-      dataOrientedInput.inputValues.push_back({virtualModel->y,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Add});
-      dataOrientedInput.inputValues.push_back({virtualModel->red,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Multiply});
-      dataOrientedInput.inputValues.push_back({virtualModel->green,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Multiply});
-      dataOrientedInput.inputValues.push_back({virtualModel->blue,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Multiply});
-      dataOrientedInput.inputValues.push_back({virtualModel->scale,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Multiply});
-      dataOrientedInput.inputValues.push_back({virtualModel->opacity,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Replace});
-      auto dataOrientedModel = DataOriented::Text(
-          virtualModel->text,
-          gsl::span(dataOrientedInput.interpolationResults.data() +
-                        totalSetProperties,
-                    numberOfProperties));
-
       auto animations = makeAnimations({Property::X, Property::Y, Property::Red,
                                         Property::Green, Property::Blue,
                                         Property::Scale, Property::Opacity});
       virtualModel->animations = animations;
       staticModel.animations = animations;
       addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
-      addAnimations(animations, dataOrientedModel, dataOrientedInput);
+      addAnimations(animations, dataOrientedInput);
+
+      auto animationsOffset = dataOrientedInput.interpolators.data() +
+                              (i * kNumberOfAnimationsPerModel);
+      auto animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::X;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->x,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Add});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Y;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->y,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Add});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Red;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->red,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Multiply});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Green;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->green,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Multiply});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Blue;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->blue,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Multiply});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Scale;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->scale,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Multiply});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Opacity;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->opacity,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Replace});
+
+      auto dataOrientedModel = DataOriented::Text(
+          virtualModel->text,
+          gsl::span(dataOrientedInput.interpolationResults.data() +
+                        totalSetProperties,
+                    numberOfProperties));
 
       virtualModels.emplace_back(virtualModel.release());
       staticModels.emplace_back(staticModel);
@@ -259,31 +276,56 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
       staticWithSpanModel.scale = virtualModel->scale;
       staticWithSpanModel.opacity = virtualModel->opacity;
 
-      dataOrientedInput.inputValues.push_back({virtualModel->x,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Add});
-      dataOrientedInput.inputValues.push_back({virtualModel->y,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Add});
-      dataOrientedInput.inputValues.push_back({virtualModel->scale,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Replace});
-      dataOrientedInput.inputValues.push_back({virtualModel->opacity,
-                                               gsl::span<LinearInterpolator>(),
-                                               UpdateOperator::Replace});
+      auto animations = makeAnimations(
+          {Property::X, Property::Y, Property::Scale, Property::Opacity});
+      virtualModel->animations = animations;
+      staticModel.animations = animations;
+      addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
+      addAnimations(animations, dataOrientedInput);
+
+      auto animationsOffset = dataOrientedInput.interpolators.data() +
+                              (i * kNumberOfAnimationsPerModel);
+      auto animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::X;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->x,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Add});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Y;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->y,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Add});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Scale;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->scale,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Replace});
+      animationsOffset += animationsCount;
+      animationsCount = std::count_if(
+          animations.cbegin(), animations.cend(), [](const auto &animation) {
+            return animation.propertyToAnimate == Property::Opacity;
+          });
+      dataOrientedInput.inputValues.push_back(
+          {virtualModel->opacity,
+           gsl::span<LinearInterpolator>(animationsOffset, animationsCount),
+           UpdateOperator::Replace});
 
       auto dataOrientedModel = DataOriented::Image(
           virtualModel->imageSource,
           gsl::span(dataOrientedInput.interpolationResults.data() +
                         totalSetProperties,
                     numberOfProperties));
-
-      auto animations = makeAnimations(
-          {Property::X, Property::Y, Property::Scale, Property::Opacity});
-      virtualModel->animations = animations;
-      staticModel.animations = animations;
-      addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
-      addAnimations(animations, dataOrientedModel, dataOrientedInput);
 
       virtualModels.emplace_back(virtualModel.release());
       staticModels.emplace_back(staticModel);

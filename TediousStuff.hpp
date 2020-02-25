@@ -5,7 +5,7 @@
 
 namespace Tedious {
 
-inline constexpr auto kNumberOfModels = 2;
+inline constexpr auto kNumberOfModels = 10;
 inline constexpr auto kNumberOfAnimationsPerModel = 10;
 inline constexpr auto kTotalNumberOfAnimations =
     kNumberOfModels * kNumberOfAnimationsPerModel;
