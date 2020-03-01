@@ -5,14 +5,13 @@
 
 namespace {
 
-constexpr int kNumberOfRepetitions = 1;
-
-void test() {
-  double virtualTotal = 0;
-  double staticTotal = 0;
-  double staticWithSpanTotal = 0;
-  double dataOrientedTotal = 0;
-  for (int i = 0; i < kNumberOfRepetitions; ++i) {
+void test(int numberOfModels, int numberOfAnimationsPerModel,
+          int numberOfRepetitions) {
+  auto virtualTotal = 0;
+  auto staticTotal = 0;
+  auto staticWithSpanTotal = 0;
+  auto dataOrientedTotal = 0;
+  for (int i = 0; i < numberOfRepetitions; ++i) {
     auto start = std::chrono::steady_clock::now();
     srand(start.time_since_epoch().count());
     std::vector<std::unique_ptr<OO::Virtual::Model>> virtualModels;
@@ -20,7 +19,8 @@ void test() {
     OO::StaticWithSpan::Input staticWithSpanInput;
     DataOriented::Input dataOrientedInput;
     Tedious::makeModels(virtualModels, staticModels, staticWithSpanInput,
-                        dataOrientedInput);
+                        dataOrientedInput, numberOfModels,
+                        numberOfAnimationsPerModel);
 
     Tedious::verifyInitialModels(virtualModels, staticModels,
                                  staticWithSpanInput.models,
@@ -55,12 +55,21 @@ void test() {
                           dataOrientedInput.models);
   }
 
-  printf("Virtual: took time: %f\n", virtualTotal);
-  printf("Static: took time: %f\n", staticTotal);
-  printf("Static with span: took time: %f\n", staticWithSpanTotal);
-  printf("Data oriented: took time: %f\n", dataOrientedTotal);
+  printf("Virtual: took time: %d\n", virtualTotal);
+  printf("Static: took time: %d\n", staticTotal);
+  printf("Static with span: took time: %d\n", staticWithSpanTotal);
+  printf("Data oriented: took time: %d\n", dataOrientedTotal);
 }
 
 }  // namespace
 
-int main(int argc, char *argv[]) { test(); }
+int main(int argc, char *argv[]) {
+  if (argc < 4) {
+    printf(
+        "Expecting number of models, number of animations per model, and "
+        "number of repeat experiments.\n");
+    return 1;
+  }
+  test(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+  return 0;
+}

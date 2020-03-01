@@ -5,15 +5,11 @@
 
 namespace Tedious {
 
-inline constexpr auto kNumberOfModels = 10;
-inline constexpr auto kNumberOfAnimationsPerModel = 10;
-inline constexpr auto kTotalNumberOfAnimations =
-    kNumberOfModels * kNumberOfAnimationsPerModel;
-
 void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
                 std::vector<OO::Static::Model> &staticModels,
                 OO::StaticWithSpan::Input &staticWithSpanInput,
-                DataOriented::Input &dataOrientedInput);
+                DataOriented::Input &dataOrientedInput, int numberOfModels,
+                int numberOfAnimationsPerModel);
 
 void verifyInitialModels(
     const std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,

@@ -1,15 +1,44 @@
 #include "TediousStuff.hpp"
 
 #include <cassert>
+#include <random>
 
 namespace Tedious {
 
 namespace {
 
-inline int randomValue(int maxValue) { return rand() % maxValue; }
+static std::random_device random;
+static auto gen = std::mt19937(random());
 
-const std::vector<std::string> kStrings = {"foo", "bar", "baz",
-                                           "some other string"};
+inline float random100() {
+  static auto kRandom100Generator =
+      std::uniform_real_distribution<float>(0, 100);
+  return kRandom100Generator(gen);
+}
+
+inline float random256() {
+  static auto kRandom256Generator =
+      std::uniform_real_distribution<float>(0, 256);
+  return kRandom256Generator(gen);
+}
+
+inline std::string randomSelectedString() {
+  static const std::vector<std::string> kStrings = {"foo", "bar", "baz",
+                                                    "some other string"};
+  static auto kRandomIntGenerator =
+      std::uniform_int_distribution<int>(0, kStrings.size());
+  return kStrings[kRandomIntGenerator(gen)];
+}
+
+inline bool randomBool() {
+  static auto kRandomIntGenerator = std::uniform_int_distribution<int>(0, 1);
+  return kRandomIntGenerator(gen) == 0;
+}
+
+inline int randomInt(int maxValue) {
+  auto kRandomIntGenerator = std::uniform_int_distribution<int>(0, maxValue);
+  return kRandomIntGenerator(gen);
+}
 
 bool operator==(const OO::Static::Model &staticModel,
                 const std::unique_ptr<OO::Virtual::Model> &virtualModel) {
@@ -77,13 +106,14 @@ bool operator==(const OO::Static::Model &staticModel,
 }
 
 auto makeInterpolator() {
-  return LinearInterpolator{(float)(rand() % 256 - 256), (float)(rand() % 256)};
+  return LinearInterpolator{256 - random256(), random256()};
 }
 
-auto makeAnimations(const std::vector<Property> &properties) {
+auto makeAnimations(const std::vector<Property> &properties,
+                    int numberOfAnimations) {
   auto animations = std::vector<OO::Animation>();
-  animations.reserve(kNumberOfAnimationsPerModel);
-  auto remainingAnimations = kNumberOfAnimationsPerModel;
+  animations.reserve(numberOfAnimations);
+  auto remainingAnimations = numberOfAnimations;
   for (size_t j = 0; j < properties.size(); ++j) {
     auto property = properties[j];
     if (remainingAnimations == 0) {
@@ -91,7 +121,7 @@ auto makeAnimations(const std::vector<Property> &properties) {
     }
     auto currentAnimations = j == properties.size() - 1
                                  ? remainingAnimations
-                                 : rand() % remainingAnimations;
+                                 : randomInt(remainingAnimations);
     remainingAnimations -= currentAnimations;
     for (int i = 0; i < currentAnimations; ++i) {
       animations.push_back({makeInterpolator(), property});
@@ -123,32 +153,34 @@ void addAnimations(const std::vector<OO::Animation> &animations,
 void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
                 std::vector<OO::Static::Model> &staticModels,
                 OO::StaticWithSpan::Input &staticWithSpanInput,
-                DataOriented::Input &dataOrientedInput) {
-  virtualModels.reserve(kNumberOfModels);
-  staticModels.reserve(kNumberOfModels);
-  staticWithSpanInput.models.reserve(kNumberOfModels);
-  staticWithSpanInput.animations.reserve(kTotalNumberOfAnimations);
-  dataOrientedInput.models.reserve(kNumberOfModels);
+                DataOriented::Input &dataOrientedInput, int numberOfModels,
+                int numberOfAnimationsPerModel) {
+  auto numberOfTotalAnimations = numberOfAnimationsPerModel * numberOfModels;
+  virtualModels.reserve(numberOfModels);
+  staticModels.reserve(numberOfModels);
+  staticWithSpanInput.models.reserve(numberOfModels);
+  staticWithSpanInput.animations.reserve(numberOfTotalAnimations);
+  dataOrientedInput.models.reserve(numberOfModels);
   dataOrientedInput.inputValues = std::vector<DataOriented::InputValue>();
-  dataOrientedInput.inputValues.reserve(kNumberOfModels * 7);
-  dataOrientedInput.interpolators.reserve(kTotalNumberOfAnimations);
+  dataOrientedInput.inputValues.reserve(numberOfModels * 7);
+  dataOrientedInput.interpolators.reserve(numberOfTotalAnimations);
   dataOrientedInput.interpolationResults =
-      std::vector<float>(kNumberOfModels * 7);
+      std::vector<float>(numberOfModels * 7);
 
   size_t totalSetProperties = 0;
-  for (int i = 0; i < kNumberOfModels; ++i) {
+  for (int i = 0; i < numberOfModels; ++i) {
     int numberOfProperties = 0;
-    if (rand() % 2 == 0) {
+    if (randomBool()) {
       numberOfProperties = 7;
       auto virtualModel = std::make_unique<OO::Virtual::Text>();
-      virtualModel->text = kStrings[rand() % kStrings.size()];
-      virtualModel->x = rand() % 100;
-      virtualModel->y = rand() % 100;
-      virtualModel->red = rand() % 256;
-      virtualModel->green = rand() % 256;
-      virtualModel->blue = rand() % 256;
-      virtualModel->scale = rand() % 100;
-      virtualModel->opacity = rand() % 100;
+      virtualModel->text = randomSelectedString();
+      virtualModel->x = random100();
+      virtualModel->y = random100();
+      virtualModel->red = random256();
+      virtualModel->green = random256();
+      virtualModel->blue = random256();
+      virtualModel->scale = random100();
+      virtualModel->opacity = random100();
 
       auto staticModel = OO::Static::Text();
       staticModel.text = virtualModel->text;
@@ -170,16 +202,17 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
       staticWithSpanModel.scale = virtualModel->scale;
       staticWithSpanModel.opacity = virtualModel->opacity;
 
-      auto animations = makeAnimations({Property::X, Property::Y, Property::Red,
-                                        Property::Green, Property::Blue,
-                                        Property::Scale, Property::Opacity});
+      auto animations = makeAnimations(
+          {Property::X, Property::Y, Property::Red, Property::Green,
+           Property::Blue, Property::Scale, Property::Opacity},
+          numberOfAnimationsPerModel);
       virtualModel->animations = animations;
       staticModel.animations = animations;
       addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
       addAnimations(animations, dataOrientedInput);
 
       auto animationsOffset = dataOrientedInput.interpolators.data() +
-                              (i * kNumberOfAnimationsPerModel);
+                              (i * numberOfAnimationsPerModel);
       auto animationsCount = std::count_if(
           animations.cbegin(), animations.cend(), [](const auto &animation) {
             return animation.propertyToAnimate == Property::X;
@@ -256,11 +289,11 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
     } else {
       numberOfProperties = 4;
       auto virtualModel = std::make_unique<OO::Virtual::Image>();
-      virtualModel->imageSource = kStrings[rand() % kStrings.size()];
-      virtualModel->x = rand() % 100;
-      virtualModel->y = rand() % 100;
-      virtualModel->scale = rand() % 100;
-      virtualModel->opacity = rand() % 100;
+      virtualModel->imageSource = randomSelectedString();
+      virtualModel->x = random100();
+      virtualModel->y = random100();
+      virtualModel->scale = random100();
+      virtualModel->opacity = random100();
 
       auto staticModel = OO::Static::Image();
       staticModel.imageSource = virtualModel->imageSource;
@@ -277,14 +310,15 @@ void makeModels(std::vector<std::unique_ptr<OO::Virtual::Model>> &virtualModels,
       staticWithSpanModel.opacity = virtualModel->opacity;
 
       auto animations = makeAnimations(
-          {Property::X, Property::Y, Property::Scale, Property::Opacity});
+          {Property::X, Property::Y, Property::Scale, Property::Opacity},
+          numberOfAnimationsPerModel);
       virtualModel->animations = animations;
       staticModel.animations = animations;
       addAnimations(animations, staticWithSpanModel, staticWithSpanInput);
       addAnimations(animations, dataOrientedInput);
 
       auto animationsOffset = dataOrientedInput.interpolators.data() +
-                              (i * kNumberOfAnimationsPerModel);
+                              (i * numberOfAnimationsPerModel);
       auto animationsCount = std::count_if(
           animations.cbegin(), animations.cend(), [](const auto &animation) {
             return animation.propertyToAnimate == Property::X;
