@@ -26,7 +26,7 @@ inline std::string randomSelectedString() {
   static const std::vector<std::string> kStrings = {"foo", "bar", "baz",
                                                     "some other string"};
   static auto kRandomIntGenerator =
-      std::uniform_int_distribution<int>(0, kStrings.size());
+      std::uniform_int_distribution<int>(0, kStrings.size() - 1);
   return kStrings[kRandomIntGenerator(gen)];
 }
 
