@@ -32,6 +32,9 @@ float &Text::propertyToUpdate(Property property) {
     case Property::Opacity:
       return opacity;
   }
+
+  printf("Static: Unknown property: %d\n", static_cast<int>(property));
+  exit(1);
 }
 
 UpdateOperator Text::updateOperatorForProperty(Property property) {
@@ -51,6 +54,9 @@ UpdateOperator Text::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
   }
+
+  printf("Static: Unknown property: %d\n", static_cast<int>(property));
+  exit(1);
 }
 
 Image Image::makeCopy() const {
@@ -75,7 +81,7 @@ float &Image::propertyToUpdate(Property property) {
     case Property::Opacity:
       return opacity;
     default:
-      printf("Static: Unknown property: %d\n", property);
+      printf("Static: Unknown property: %d\n", static_cast<int>(property));
       exit(1);
   }
 }
@@ -91,13 +97,12 @@ UpdateOperator Image::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
     default:
-      printf("Static: Unknown property: %d\n", property);
+      printf("Static: Unknown property: %d\n", static_cast<int>(property));
       exit(1);
   }
 }
 
-std::vector<Model> interpolateModels(const std::vector<Model> &inputs,
-                                     float time) {
+std::vector<Model> interpolateModels(const std::vector<Model> &inputs, float time) {
   auto output = std::vector<Model>(inputs.size());
   for (int i = 0; i < inputs.size(); ++i) {
     auto &model = inputs[i];

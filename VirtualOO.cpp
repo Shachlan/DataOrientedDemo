@@ -33,6 +33,8 @@ float &Text::propertyToUpdate(Property property) {
     case Property::Opacity:
       return opacity;
   }
+  printf("Virtual: Unknown property: %d\n", static_cast<int>(property));
+  exit(1);
 }
 
 UpdateOperator Text::updateOperatorForProperty(Property property) {
@@ -52,6 +54,9 @@ UpdateOperator Text::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
   }
+
+  printf("Virtual: Unknown property: %d\n", static_cast<int>(property));
+  exit(1);
 }
 
 std::unique_ptr<Model> Image::makeCopy() const {
@@ -76,7 +81,7 @@ float &Image::propertyToUpdate(Property property) {
     case Property::Opacity:
       return opacity;
     default:
-      printf("Virtual: Unknown property: %d\n", property);
+      printf("Virtual: Unknown property: %d\n", static_cast<int>(property));
       exit(1);
   }
 }
@@ -92,7 +97,7 @@ UpdateOperator Image::updateOperatorForProperty(Property property) {
     case Property::Opacity:
       return UpdateOperator::Replace;
     default:
-      printf("Virtual: Unknown property: %d\n", property);
+      printf("Virtual: Unknown property: %d\n", static_cast<int>(property));
       exit(1);
   }
 }
@@ -101,7 +106,6 @@ std::vector<std::unique_ptr<Model>> interpolateModels(
     const std::vector<std::unique_ptr<Model>> &inputs, float time) {
   auto output = std::vector<std::unique_ptr<Model>>(inputs.size());
   for (int i = 0; i < inputs.size(); ++i) {
-
     auto &model = inputs[i];
     output[i] = model->makeCopy();
     auto &copy = output[i];

@@ -12,4 +12,6 @@ constexpr float composeValue(float source, UpdateOperator op, float value) {
     case UpdateOperator::Replace:
       return value;
   }
+  printf("unknown update operator: %d\n", static_cast<int>(op));
+  exit(1);
 }
